@@ -1,0 +1,2 @@
+#lua-xxhash
+xxHash binding
