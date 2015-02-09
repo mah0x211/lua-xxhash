@@ -5,7 +5,6 @@ source = {
 }
 description = {
     summary = "xxhash binding",
-    detailed = [[]],
     homepage = "https://github.com/mah0x211/lua-xxhash", 
     license = "MIT/X11",
     maintainer = "Masatoshi Teruya"
@@ -17,9 +16,9 @@ build = {
     type = "builtin",
     modules = {
         xxhash = {
-            sources = { 
-                "xxhash_bind.c",
-                "xxhash.c"
+            sources = {
+                "src/xxhash_bind.c",
+                "src/xxhash.c"
             }
         }
     }
