@@ -30,7 +30,16 @@
 #include <lualib.h>
 #include "xxhash.h"
 
+// helper macros
+#define lstate_fn2tbl(L,k,v) do{ \
+    lua_pushstring(L,k); \
+    lua_pushcfunction(L,v); \
+    lua_rawset(L,-3); \
+}while(0)
+
 #define XXHASH_LUA "xxhash"
+
+
 typedef struct {
     void *state;
     unsigned int seed;
@@ -102,10 +111,7 @@ static int reset_lua( lua_State *L )
 
 static int tostring_lua( lua_State *L )
 {
-    xxhash_t *xh = lua_touserdata( L, 1 );
-    
-    lua_pushfstring( L, XXHASH_LUA ": %p", xh );
-    
+    lua_pushfstring( L, XXHASH_LUA ": %p", lua_touserdata( L, 1 ) );
     return 1;
 }
 
@@ -118,48 +124,54 @@ static int gc_lua( lua_State *L )
     return 0;
 }
 
+
 LUALIB_API int luaopen_xxhash( lua_State *L )
 {
-    struct luaL_Reg fnReg[] = {
+    struct luaL_Reg mmethod[] = {
+        { "__gc", gc_lua },
+        { "__tostring", tostring_lua },
+        { NULL, NULL }
+    };
+    struct luaL_Reg method[] = {
+        { "update", update_lua },
+        { "digest", digest_lua },
+        { "reset", reset_lua },
+        { NULL, NULL }
+    };
+    struct luaL_Reg funcs[] = {
         { "xxh32", xxh32_lua },
         { "init", init_lua },
         { NULL, NULL }
     };
-    int i = 0;
-    int top = lua_gettop( L );
+    struct luaL_Reg *ptr = NULL;
     
-    // metatable for userdata
+    // create metatable
     luaL_newmetatable( L, XXHASH_LUA );
-    lua_pushstring( L, "__gc" );
-    lua_pushcfunction( L, gc_lua );
-    lua_rawset( L, -3 );
-    // add name
-    lua_pushstring( L, "__tostring" );
-    lua_pushcfunction( L, tostring_lua );
-    lua_rawset( L, -3 );
+    // add metamethod
+    ptr = mmethod;
+    do {
+        lstate_fn2tbl( L, ptr->name, ptr->func );
+        ptr++;
+    } while( ptr->name );
     // add method
     lua_pushstring( L, "__index" );
     lua_newtable( L );
-    lua_pushstring( L, "update" );
-    lua_pushcfunction( L, update_lua );
+    ptr = method;
+    do {
+        lstate_fn2tbl( L, ptr->name, ptr->func );
+        ptr++;
+    } while( ptr->name );
     lua_rawset( L, -3 );
-    lua_pushstring( L, "digest" );
-    lua_pushcfunction( L, digest_lua );
-    lua_rawset( L, -3 );
-    lua_pushstring( L, "reset" );
-    lua_pushcfunction( L, reset_lua );
-    lua_rawset( L, -3 );
-
-    lua_rawset( L, -3 );
-    lua_settop( L, top );
+    // remove metatable
+    lua_pop( L, 1 );
     
-    // exports
+    // add functions into module table
     lua_newtable( L );
-    for( i = 0; fnReg[i].name; i++ ){ 
-        lua_pushstring( L, fnReg[i].name );
-        lua_pushcfunction( L, fnReg[i].func );
-        lua_rawset( L, -3 );
-    }
+    ptr = funcs;
+    do {
+        lstate_fn2tbl( L, ptr->name, ptr->func );
+        ptr++;
+    }while( ptr->name );
     
     return 1;
 }
